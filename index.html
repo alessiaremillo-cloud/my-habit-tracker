@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Habits">
+<meta name="theme-color" content="#0a0a0f">
+<title>Habit Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #13131a;
+    --surface2: #1c1c26;
+    --border: #2a2a3a;
+    --accent: #7c6fff;
+    --text: #e8e8f0;
+    --text2: #8888aa;
+    --text3: #4a4a66;
+    --radius: 14px;
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg); color: var(--text);
+    min-height: 100dvh; overflow-x: hidden;
+    padding-top: var(--safe-top);
+    padding-bottom: calc(var(--safe-bottom) + 64px);
+  }
+
+  /* HEADER */
+  .header {
+    padding: 14px 16px 12px;
+    display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; background: var(--bg); z-index: 100;
+    border-bottom: 1px solid var(--border);
+  }
+  .hdr-title { font-family: 'Space Mono', monospace; font-size: 12px; color: var(--text2); letter-spacing: 0.12em; text-transform: uppercase; }
+  .hdr-date  { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--accent); }
+
+  /* BOTTOM NAV */
+  .bottom-nav {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: var(--surface); border-top: 1px solid var(--border);
+    display: flex; padding-bottom: var(--safe-bottom); z-index: 100;
+  }
+  .nav-btn {
+    flex: 1; padding: 12px 8px; background: none; border: none;
+    color: var(--text3); font-family: 'DM Sans', sans-serif; font-size: 11px;
+    cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px;
+    transition: color 0.2s;
+  }
+  .nav-btn.active { color: var(--accent); }
+  .nav-btn svg { width: 20px; height: 20px; }
+
+  /* PAGES */
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* ═══════════════════════════════════════
+     PAGE 1 — CALENDARIO + INPUT
+  ═══════════════════════════════════════ */
+  #page-cal { padding: 14px 12px 0; }
+
+  /* month nav */
+  .mnav {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .mnav-btn {
+    background: var(--surface); border: 1px solid var(--border);
+    color: var(--text); width: 36px; height: 36px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; font-size: 18px; flex-shrink: 0;
+  }
+  .mnav-label { font-family: 'Space Mono', monospace; font-size: 13px; color: var(--text); text-transform: uppercase; letter-spacing: 0.06em; }
+
+  /* calendar grid */
+  .cgrid {
+    display: grid; grid-template-columns: repeat(7, 1fr);
+    gap: 3px; margin-bottom: 14px;
+  }
+  .cgrid-hdr {
+    text-align: center; font-size: 9px; color: var(--text3);
+    font-family: 'Space Mono', monospace; padding: 4px 0; text-transform: uppercase;
+  }
+  .cday {
+    border-radius: 8px; aspect-ratio: 1;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 2px; cursor: pointer; transition: background 0.15s;
+    position: relative; padding: 2px;
+  }
+  .cday.empty   { cursor: default; }
+  .cday.future  { opacity: 0.25; pointer-events: none; }
+  .cday.today   { border: 1.5px solid var(--accent); }
+  .cday.selected { background: var(--surface2); }
+  .cday-num { font-size: 11px; color: var(--text2); font-family: 'Space Mono', monospace; line-height: 1; }
+  .cday.today .cday-num { color: var(--accent); font-weight: 700; }
+  .cday.selected .cday-num { color: var(--text); }
+  .cday-total {
+    font-family: 'Space Mono', monospace; font-size: 13px; font-weight: 700;
+    color: var(--text); line-height: 1;
+  }
+  .cday-total.zero { color: var(--text3); font-size: 9px; font-weight: 400; }
+  .cday-dots { display: flex; gap: 1px; flex-wrap: wrap; justify-content: center; max-width: 26px; }
+  .cdot { width: 3px; height: 3px; border-radius: 50%; }
+
+  /* selected day panel */
+  .day-panel {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); overflow: hidden;
+    margin-bottom: 12px;
+  }
+  .day-panel-hdr {
+    padding: 12px 14px 10px;
+    display: flex; align-items: baseline; justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+  }
+  .day-panel-date { font-family: 'Space Mono', monospace; font-size: 12px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.06em; }
+  .day-panel-total { font-family: 'Space Mono', monospace; font-size: 20px; font-weight: 700; color: var(--accent); }
+  .day-panel-total span { font-size: 11px; color: var(--text2); font-weight: 400; }
+
+  /* category buttons */
+  .cat-rows { display: flex; flex-direction: column; }
+  .cat-row {
+    display: flex; align-items: center; gap: 0;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  .cat-row:last-child { border-bottom: none; }
+  .cat-icon { font-size: 18px; width: 30px; text-align: center; flex-shrink: 0; }
+  .cat-name { flex: 1; font-size: 14px; font-weight: 500; padding-left: 8px; }
+  .cat-controls { display: flex; align-items: center; gap: 6px; }
+
+  /* pip dots (score visual) */
+  .cat-pips { display: flex; gap: 3px; align-items: center; }
+  .pip {
+    width: 8px; height: 8px; border-radius: 50%;
+    border: 1.5px solid var(--pip-color);
+    transition: background 0.15s;
+    flex-shrink: 0;
+  }
+  .pip.filled { background: var(--pip-color); }
+
+  /* +/- buttons */
+  .cat-plus {
+    width: 36px; height: 36px; border-radius: 10px; border: none;
+    background: color-mix(in srgb, var(--cat-color) 20%, transparent);
+    color: var(--cat-color); font-size: 22px; font-weight: 300;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: background 0.15s; flex-shrink: 0;
+    line-height: 1;
+  }
+  .cat-plus:active { background: color-mix(in srgb, var(--cat-color) 35%, transparent); }
+  .cat-plus:disabled { opacity: 0.2; cursor: default; }
+  .cat-minus {
+    width: 28px; height: 28px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--surface2); color: var(--text2); font-size: 18px; font-weight: 300;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: all 0.15s; flex-shrink: 0;
+    line-height: 1;
+  }
+  .cat-minus:active { background: var(--border); }
+  .cat-minus:disabled { opacity: 0.2; cursor: default; }
+
+  .no-day-msg {
+    text-align: center; color: var(--text3);
+    font-size: 13px; padding: 24px 16px;
+  }
+
+  /* ═══════════════════════════════════════
+     PAGE 2 — RECAP ANNO
+  ═══════════════════════════════════════ */
+  #page-year { padding: 14px 12px; }
+
+  .year-title {
+    font-family: 'Space Mono', monospace; font-size: 13px; color: var(--text);
+    text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 16px;
+    text-align: center;
+  }
+
+  /* year summary bar */
+  .year-summary {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 14px 16px;
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 8px; margin-bottom: 20px; text-align: center;
+  }
+  .ys-val { font-family: 'Space Mono', monospace; font-size: 22px; font-weight: 700; color: var(--accent); }
+  .ys-lbl { font-size: 11px; color: var(--text2); margin-top: 2px; }
+
+  /* 12-month grid */
+  .months-grid { display: flex; flex-direction: column; gap: 14px; }
+
+  .month-block { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .month-block-hdr {
+    padding: 10px 14px 8px;
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+  }
+  .mbh-name { font-family: 'Space Mono', monospace; font-size: 12px; color: var(--text); text-transform: uppercase; letter-spacing: 0.06em; }
+  .mbh-total { font-family: 'Space Mono', monospace; font-size: 16px; font-weight: 700; color: var(--accent); }
+
+
+
+  /* per-category bar inside month block */
+  .month-cats { padding: 6px 12px 10px; display: flex; flex-direction: column; gap: 6px; }
+  .mcat-row { display: flex; align-items: center; gap: 8px; }
+  .mcat-icon { font-size: 13px; width: 20px; text-align: center; flex-shrink: 0; }
+  .mcat-bar-bg { flex: 1; height: 5px; background: var(--surface2); border-radius: 3px; overflow: hidden; }
+  .mcat-bar-fill { height: 100%; border-radius: 3px; transition: width 0.4s; }
+  .mcat-pts { font-family: 'Space Mono', monospace; font-size: 11px; font-weight: 700; width: 22px; text-align: right; flex-shrink: 0; }
+
+  /* TOAST */
+  .toast {
+    position: fixed; top: calc(var(--safe-top) + 54px); left: 50%;
+    transform: translateX(-50%) translateY(-14px);
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 100px; padding: 8px 16px;
+    font-size: 13px; font-weight: 500; color: var(--text);
+    z-index: 300; opacity: 0; transition: all 0.22s;
+    white-space: nowrap; pointer-events: none;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span class="hdr-title">Habits</span>
+  <span class="hdr-date" id="hdrDate"></span>
+</div>
+
+<!-- ══ PAGE 1: CALENDARIO ══ -->
+<div class="page active" id="page-cal">
+  <div class="mnav">
+    <button class="mnav-btn" id="calPrev">‹</button>
+    <span class="mnav-label" id="calLabel"></span>
+    <button class="mnav-btn" id="calNext">›</button>
+  </div>
+  <div class="cgrid" id="cgrid"></div>
+  <div id="dayPanelWrap"></div>
+</div>
+
+<!-- ══ PAGE 2: ANNO ══ -->
+<div class="page" id="page-year">
+  <div class="year-title" id="yearTitle"></div>
+  <div class="year-summary" id="yearSummary"></div>
+  <div class="months-grid" id="monthsGrid"></div>
+</div>
+
+<!-- BOTTOM NAV -->
+<nav class="bottom-nav">
+  <button class="nav-btn active" data-page="cal">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <rect x="3" y="4" width="18" height="18" rx="2"/>
+      <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
+      <line x1="3" y1="10" x2="21" y2="10"/>
+    </svg>
+    Calendario
+  </button>
+  <button class="nav-btn" data-page="year">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+    </svg>
+    Anno
+  </button>
+</nav>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════
+const HABITS = [
+  { id: 'lettura', name: 'Lettura', icon: '📚', color: '#7c6fff' },
+  { id: 'studio',  name: 'Studio',  icon: '🧠', color: '#4fffb0' },
+  { id: 'sobrio',  name: 'Sobrio',  icon: '🧘', color: '#ff6f9c' },
+  { id: 'sport',   name: 'Sport',   icon: '🏋️', color: '#ffd166' },
+  { id: 'altro',   name: 'Altro',   icon: '✨', color: '#6fc8ff' },
+];
+const MAX_PTS = 5;
+
+// ═══════════════════════════════════════
+// STORAGE
+// ═══════════════════════════════════════
+function loadData()  { try { return JSON.parse(localStorage.getItem('ht_data_v3')) || {}; } catch { return {}; } }
+function saveData(d) { localStorage.setItem('ht_data_v3', JSON.stringify(d)); }
+
+function dateKey(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function daysInMonth(y, m) { return new Date(y, m+1, 0).getDate(); }
+
+function getPts(k, habitId)       { return (loadData()[k] || {})[habitId] || 0; }
+function addPt(k, habitId)        {
+  const d = loadData();
+  if (!d[k]) d[k] = {};
+  const cur = d[k][habitId] || 0;
+  if (cur >= MAX_PTS) return;
+  d[k][habitId] = cur + 1;
+  saveData(d);
+}
+function subPt(k, habitId)        {
+  const d = loadData();
+  if (!d[k] || !d[k][habitId]) return;
+  d[k][habitId]--;
+  if (d[k][habitId] <= 0) delete d[k][habitId];
+  if (!Object.keys(d[k]).length) delete d[k];
+  saveData(d);
+}
+function dayTotal(k) {
+  const e = loadData()[k] || {};
+  return HABITS.reduce((s, h) => s + (e[h.id] || 0), 0);
+}
+function monthPts(habitId, y, m) {
+  const data = loadData(); let t = 0;
+  for (let d = 1; d <= daysInMonth(y, m); d++)
+    t += ((data[dateKey(new Date(y, m, d))] || {})[habitId] || 0);
+  return t;
+}
+function monthTotal(y, m) {
+  return HABITS.reduce((s, h) => s + monthPts(h.id, y, m), 0);
+}
+
+// ═══════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════
+const todayD = new Date(); todayD.setHours(0,0,0,0);
+let calMonth = 3; // Aprile
+let calYear  = 2026;
+let selKey   = dateKey(todayD); // default: today selected
+
+const MONTHS_IT    = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
+const MONTHS_SHORT = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
+const DAYS_SHORT   = ['Lun','Mar','Mer','Gio','Ven','Sab','Dom'];
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 1600);
+}
+
+// ═══════════════════════════════════════
+// HEADER
+// ═══════════════════════════════════════
+document.getElementById('hdrDate').textContent =
+  todayD.toLocaleDateString('it-IT', { weekday:'short', day:'numeric', month:'short' });
+
+// ═══════════════════════════════════════
+// PAGE 1 — CALENDAR
+// ═══════════════════════════════════════
+function renderCal() {
+  document.getElementById('calLabel').textContent = `${MONTHS_IT[calMonth]} ${calYear}`;
+
+  const grid    = document.getElementById('cgrid');
+  grid.innerHTML = '';
+
+  // headers
+  DAYS_SHORT.forEach(d => {
+    const el = document.createElement('div');
+    el.className = 'cgrid-hdr'; el.textContent = d; grid.appendChild(el);
+  });
+
+  const firstDow  = new Date(calYear, calMonth, 1).getDay();
+  const startDow  = firstDow === 0 ? 6 : firstDow - 1;
+  const days      = daysInMonth(calYear, calMonth);
+
+  for (let i = 0; i < startDow; i++) {
+    const el = document.createElement('div'); el.className = 'cday empty'; grid.appendChild(el);
+  }
+
+  for (let day = 1; day <= days; day++) {
+    const d   = new Date(calYear, calMonth, day);
+    const k   = dateKey(d);
+    const tot = dayTotal(k);
+    const isTod = d.getTime() === todayD.getTime();
+    const isFut = d > todayD;
+    const isSel = k === selKey;
+
+    let cls = 'cday';
+    if (isTod) cls += ' today';
+    if (isFut) cls += ' future';
+    if (isSel) cls += ' selected';
+
+    const dots = HABITS
+      .filter(h => (loadData()[k] || {})[h.id] > 0)
+      .map(h => `<div class="cdot" style="background:${h.color}"></div>`)
+      .join('');
+
+    const el = document.createElement('div');
+    el.className = cls;
+    el.innerHTML = `
+      <div class="cday-num">${day}</div>
+      <div class="cday-total ${tot === 0 ? 'zero' : ''}">${tot === 0 ? '·' : tot}</div>
+      <div class="cday-dots">${dots}</div>`;
+
+    if (!isFut) {
+      el.addEventListener('click', () => {
+        selKey = (selKey === k) ? null : k;
+        renderCal();
+      });
+    }
+    grid.appendChild(el);
+  }
+
+  renderDayPanel();
+}
+
+function renderDayPanel() {
+  const wrap = document.getElementById('dayPanelWrap');
+
+  if (!selKey) {
+    wrap.innerHTML = `<div class="no-day-msg">Seleziona un giorno</div>`;
+    return;
+  }
+
+  const [y, m, d] = selKey.split('-').map(Number);
+  const dateObj   = new Date(y, m-1, d);
+  const dow       = DAYS_SHORT[(dateObj.getDay() === 0 ? 6 : dateObj.getDay()-1)];
+  const label     = `${dow} ${d} ${MONTHS_SHORT[m-1]} ${y}`;
+  const total     = dayTotal(selKey);
+  const maxTotal  = HABITS.length * MAX_PTS;
+
+  const catRowsHtml = HABITS.map(h => {
+    const pts = getPts(selKey, h.id);
+    const pips = Array.from({length: MAX_PTS}, (_, i) =>
+      `<div class="pip ${i < pts ? 'filled' : ''}" style="--pip-color:${h.color}"></div>`
+    ).join('');
+    return `
+      <div class="cat-row">
+        <div class="cat-icon">${h.icon}</div>
+        <div class="cat-name">${h.name}</div>
+        <div class="cat-controls">
+          <div class="cat-pips">${pips}</div>
+          <button class="cat-minus" data-id="${h.id}" ${pts <= 0 ? 'disabled' : ''}>−</button>
+          <button class="cat-plus"  data-id="${h.id}" style="--cat-color:${h.color}" ${pts >= MAX_PTS ? 'disabled' : ''}>+</button>
+        </div>
+      </div>`;
+  }).join('');
+
+  wrap.innerHTML = `
+    <div class="day-panel">
+      <div class="day-panel-hdr">
+        <span class="day-panel-date">${label}</span>
+        <span class="day-panel-total">${total} <span>/ ${maxTotal}</span></span>
+      </div>
+      <div class="cat-rows">${catRowsHtml}</div>
+    </div>`;
+
+  // Bind buttons
+  wrap.querySelectorAll('.cat-plus').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const hid = btn.dataset.id;
+      const cur = getPts(selKey, hid);
+      if (cur >= MAX_PTS) return;
+      addPt(selKey, hid);
+      renderCal();
+    });
+  });
+  wrap.querySelectorAll('.cat-minus').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const hid = btn.dataset.id;
+      if (getPts(selKey, hid) <= 0) return;
+      subPt(selKey, hid);
+      renderCal();
+    });
+  });
+}
+
+document.getElementById('calPrev').addEventListener('click', () => {
+  if (--calMonth < 0) { calMonth = 11; calYear--; }
+  renderCal();
+});
+document.getElementById('calNext').addEventListener('click', () => {
+  if (++calMonth > 11) { calMonth = 0; calYear++; }
+  renderCal();
+});
+
+// ═══════════════════════════════════════
+// PAGE 2 — ANNO
+// ═══════════════════════════════════════
+function renderYear() {
+  const year = 2026;
+  document.getElementById('yearTitle').textContent = year;
+
+  // year summary
+  let grandTotal = 0, grandDays = 0;
+  for (let m = 3; m < 12; m++) {
+    grandTotal += monthTotal(year, m);
+    for (let d = 1; d <= daysInMonth(year, m); d++)
+      if (dayTotal(dateKey(new Date(year, m, d))) > 0) grandDays++;
+  }
+  const bestM = Array.from({length:9}, (_,i) => monthTotal(year,i+3));
+  const bestMIdx = bestM.indexOf(Math.max(...bestM)) + 3;
+
+  document.getElementById('yearSummary').innerHTML = `
+    <div><div class="ys-val">${grandTotal}</div><div class="ys-lbl">Punti</div></div>
+    <div><div class="ys-val">${grandDays}</div><div class="ys-lbl">Giorni attivi</div></div>
+    <div><div class="ys-val">${MONTHS_SHORT[bestMIdx]}</div><div class="ys-lbl">Mese top</div></div>`;
+
+  // 12 month blocks
+  const grid = document.getElementById('monthsGrid');
+  grid.innerHTML = '';
+
+  for (let m = 3; m < 12; m++) {
+    const mt      = monthTotal(year, m);
+    const days    = daysInMonth(year, m);
+    const maxMonthPts = days * HABITS.length * MAX_PTS;
+    const isFutureMonth = new Date(year, m, 1) > new Date(year, todayD.getMonth(), 1);
+
+    // per-category bars
+    const catBars = HABITS.map(h => {
+      const hPts  = monthPts(h.id, year, m);
+      const maxH  = days * MAX_PTS;
+      const w     = maxH > 0 ? Math.round(hPts / maxH * 100) : 0;
+      return `<div class="mcat-row">
+        <div class="mcat-icon">${h.icon}</div>
+        <div class="mcat-bar-bg"><div class="mcat-bar-fill" style="width:${w}%;background:${h.color}"></div></div>
+        <div class="mcat-pts" style="color:${h.color}">${hPts}</div>
+      </div>`;
+    }).join('');
+
+    const block = document.createElement('div');
+    block.className = 'month-block';
+    if (isFutureMonth) block.style.opacity = '0.4';
+    block.innerHTML = `
+      <div class="month-block-hdr">
+        <span class="mbh-name">${MONTHS_IT[m]}</span>
+        <span class="mbh-total">${mt} pt</span>
+      </div>
+      <div class="month-cats">${catBars}</div>`;
+    grid.appendChild(block);
+  }
+}
+
+// ═══════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════
+document.querySelectorAll('.nav-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const page = btn.dataset.page;
+    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('page-' + page).classList.add('active');
+    if (page === 'cal')  renderCal();
+    if (page === 'year') renderYear();
+  });
+});
+
+// ═══════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════
+renderCal();
+</script>
+</body>
+</html>
